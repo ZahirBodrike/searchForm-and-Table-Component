@@ -2,15 +2,22 @@
   <div>
     <el-table
       ref="table"
+      stripe
       v-loading.lock="loading"
       :data="tableData"
       :row-key="rowKey"
       :lazy="treeTableLazy"
       :load="loadChildData"
       :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
-      @row-click="(row, event, column) => emitEventHandler('row-click', row, event, column)"
-      @sort-change="args => emitEventHandler('sort-change', args)"
-      @selection-change="selection => emitEventHandler('selection-change', selection)"
+      @cell-dblclick="handleCellEdit"
+      @row-click="
+        (row, event, column) =>
+          emitEventHandler('row-click', row, event, column)
+      "
+      @sort-change="(args) => emitEventHandler('sort-change', args)"
+      @selection-change="
+        (selection) => emitEventHandler('selection-change', selection)
+      "
     >
       <template v-for="(column, columnIndex) in freezeColumn">
         <el-table-column
@@ -27,18 +34,81 @@
           :header-align="column.headerAlign || column.align"
         >
           <template slot-scope="scope" :scope="'scope'">
-            <span v-if="column.slotName">
-              <slot :name="column.slotName" :row="scope.row" :$index="scope.$index" />
+            <template v-if="canEdit && scope.row[column.prop]">
+              <el-select
+                v-if="column.editType == 'select'"
+                v-show="scope.row[column.prop].edit"
+                :ref="column.prop"
+                v-model="scope.row[column.prop].value"
+                @change="
+                  (value) =>
+                    emitEventHandler(
+                      'edit-change',
+                      column.prop,
+                      scope.$index,
+                      value,
+                    )
+                "
+                @blur="scope.row[column.prop].edit = true"
+              >
+                <el-option
+                  v-for="item in column.editOptions"
+                  :key="item.label"
+                  :label="item.label"
+                  :value="item.value"
+                />
+              </el-select>
+              <el-input
+                v-else
+                v-show="scope.row[column.prop].edit"
+                :ref="column.prop"
+                v-model="scope.row[column.prop].value"
+                @change="
+                  (value) =>
+                    emitEventHandler(
+                      'edit-change',
+                      column.prop,
+                      scope.$index,
+                      value,
+                    )
+                "
+                @blur="scope.row[column.prop].edit = true"
+              />
+              <span v-show="!scope.row[column.prop].edit">{{
+                scope.row[column.prop].value
+              }}</span>
+            </template>
+            <span v-else-if="column.slotName">
+              <slot
+                :name="column.slotName"
+                :row="scope.row"
+                :$index="scope.$index"
+                :column="scope.column"
+              />
             </span>
             <span v-else-if="column.formatter">
-              {{ column.formatter(scope.row, scope.column, scope.row[column.prop], scope.$index) }}
+              {{
+                column.formatter(
+                  scope.row,
+                  scope.column,
+                  scope.row[column.prop],
+                  scope.$index,
+                )
+              }}
+            </span>
+            <span v-else-if="column.isShowIndex">
+              {{
+                scope.$index +
+                1 +
+                (pagination.pageIndex - 1) * pagination.pageSize
+              }}
             </span>
             <span v-else>
               {{ scope.row[column.prop] }}
             </span>
           </template>
         </el-table-column>
-        <el-table-column v-else :key="columnIndex" v-bind="column" />
+        <el-table-column v-else :key="column.prop" v-bind="column" />
       </template>
     </el-table>
 
@@ -60,202 +130,251 @@
 </template>
 
 <script>
-import { tableProps } from './props'
+import { tableProps } from './props';
 
 export default {
   name: 'CommonTable',
   props: tableProps,
   data() {
-    const _this = this
+    const _this = this;
     return {
       loading: false,
       tableData: [],
       pagination: {
         pageIndex: 1,
         pageSize: (() => {
-          const { pageSizes } = _this
+          const { pageSizes } = _this;
           if (pageSizes && pageSizes.length > 0) {
-            return pageSizes[0]
+            return pageSizes[0];
           }
-          return 10
-        })()
+          return 10;
+        })(),
       },
       total: 0,
-      cacheLocalData: []
-    }
+      cacheLocalData: [],
+    };
   },
   computed: {
     freezeColumn() {
-      return this.columns && Object.freeze(this.columns)
-    }
+      return this.columns && Object.freeze(this.columns);
+    },
   },
   watch: {
     data(value) {
-      this.loadLocalData(value)
-    }
+      this.loadLocalData(value);
+    },
   },
   mounted() {
     if (this.type === 'remote' && this.autoLoad) {
-      this.fetchHandler(this.params)
+      this.fetchHandler(this.params);
     } else if (this.type === 'local') {
-      this.loadLocalData(this.data)
+      this.loadLocalData(this.data);
     }
   },
   methods: {
     // 切换每页数据量
     handleSizeChange(size) {
-      this.pagination.pageSize = size
-      this.dataChangeHandler()
+      this.pagination.pageSize = size;
+      this.dataChangeHandler();
     },
     // 切换页数
     handleCurrentChange(pageIndex) {
-      this.pagination.pageIndex = pageIndex
-      this.dataChangeHandler()
+      this.pagination.pageIndex = pageIndex;
+      this.dataChangeHandler();
     },
     // 外部调用的搜索刷新
     searchHandler(...searchForm) {
-      this.pagination.pageIndex = 1
-      this.dataChangeHandler(...searchForm)
+      this.pagination.pageIndex = 1;
+      this.dataChangeHandler(...searchForm);
     },
     // 请求接口数据或者获取本地数据
     dataChangeHandler(...data) {
       if (this.type === 'local') {
-        this.dataFilterHandler(...data)
+        this.dataFilterHandler(...data);
       } else if (this.type === 'remote') {
-        this.fetchHandler(...data)
+        this.fetchHandler(...data);
       }
     },
     // 筛选出当前页的数据
     dataFilter(data) {
-      const { pageIndex, pageSize } = this.pagination
+      const { pageIndex, pageSize } = this.pagination;
       return data.filter((v, i) => {
-        return i >= (pageIndex - 1) * pageSize && i < pageIndex * pageSize
-      })
+        return i >= (pageIndex - 1) * pageSize && i < pageIndex * pageSize;
+      });
     },
     // 处理本地数据
     dataFilterHandler(formParams) {
-      const { cacheLocalData, params } = this
-      const mergeParams = Object.assign(params, formParams)
-      const validParamKeys = Object.keys(mergeParams).filter(v => {
-        return mergeParams[v] !== undefined && mergeParams[v] !== ''
-      })
-      const searchForm = this.$parent.$refs['form']
-      let paramFuzzy
+      const { cacheLocalData, params } = this;
+      const mergeParams = Object.assign(params, formParams);
+      const validParamKeys = Object.keys(mergeParams).filter((v) => {
+        return mergeParams[v] !== undefined && mergeParams[v] !== '';
+      });
+      const searchForm = this.$parent.$refs['form'];
+      let paramFuzzy;
       if (searchForm) {
-        paramFuzzy = searchForm.getParamFuzzy()
+        paramFuzzy = searchForm.getParamFuzzy();
       }
 
       if (validParamKeys.length > 0) {
-        const validData = cacheLocalData.filter(v => {
-          const valids = []
-          validParamKeys.forEach(vv => {
+        const validData = cacheLocalData.filter((v) => {
+          const valids = [];
+          validParamKeys.forEach((vv) => {
             if (typeof v[vv] === 'number') {
               valids.push(
-                paramFuzzy && paramFuzzy[vv] ? (String(v[vv]).indexOf(String(mergeParams[vv])) !== -1)
-                  : (String(v[vv]) === String(mergeParams[vv]))
-              )
+                paramFuzzy && paramFuzzy[vv]
+                  ? String(v[vv]).indexOf(String(mergeParams[vv])) !== -1
+                  : String(v[vv]) === String(mergeParams[vv]),
+              );
             } else {
               valids.push(
-                paramFuzzy && paramFuzzy[vv] ? (v[vv].indexOf(mergeParams[vv]) !== -1) : (v[vv] === mergeParams[vv])
-              )
+                paramFuzzy && paramFuzzy[vv]
+                  ? v[vv].indexOf(mergeParams[vv]) !== -1
+                  : v[vv] === mergeParams[vv],
+              );
             }
-          })
-          return valids.every(vvv => {
-            return vvv
-          })
-        })
+          });
+          return valids.every((vvv) => {
+            return vvv;
+          });
+        });
 
-        this.tableData = this.dataFilter(validData)
-        this.total = validData.length
+        this.tableData = this.dataFilter(validData);
+        this.total = validData.length;
       } else {
-        this.total = cacheLocalData.length
-        this.tableData = this.dataFilter(cacheLocalData)
+        this.total = cacheLocalData.length;
+        this.tableData = this.dataFilter(cacheLocalData);
+      }
+
+      if (this.canEdit) {
+        this.formatEditableData();
       }
     },
     // 获取接口数据
     fetchHandler(formParams = {}) {
-      this.loading = true
-      let { params } = this
-      const { showPagination, pagination, totalField, pageSizeKey, pageIndexKey, listField, fetch } = this
+      this.loading = true;
+      let { params } = this;
+      const {
+        showPagination,
+        pagination,
+        totalField,
+        pageSizeKey,
+        pageIndexKey,
+        listField,
+        fetch,
+      } = this;
 
-      params = JSON.parse(JSON.stringify(Object.assign(params, formParams)))
+      params = JSON.parse(JSON.stringify(Object.assign(params, formParams)));
 
       if (showPagination) {
         params = Object.assign(params, {
           [pageIndexKey]: pagination.pageIndex,
-          [pageSizeKey]: pagination.pageSize
-        })
+          [pageSizeKey]: pagination.pageSize,
+        });
       }
 
       if (!fetch) {
-        console.log('请传入请求函数')
-        this.loading = false
-        return
+        console.log('请传入请求函数');
+        this.loading = false;
+        return;
       }
 
-      fetch(params).then(response => {
-        let result = response
-
-        if (response && !(response instanceof Array)) {
-          if (listField && listField.indexOf('.') !== -1) {
-            listField.split('.').forEach(i => {
-              result = result[i]
-            })
-          } else {
-            result = response[listField]
+      fetch(params)
+        .then((response) => {
+          let result = response;
+          const {
+            data: { total },
+          } = response;
+          if (response && !(response instanceof Array)) {
+            if (listField && listField.indexOf('.') !== -1) {
+              listField.split('.').forEach((i) => {
+                result = result[i];
+              });
+            } else {
+              result = response[listField];
+            }
           }
-        }
 
-        if (!result || !(result instanceof Array)) {
-          this.loading = false
-          return
-        }
-
-        if (this.dataHandler) {
-          this.tableData = result.map(this.dataHandler)
-        } else {
-          this.tableData = result
-        }
-
-        let totalValue = response
-        if (Object.prototype.toString.call(response) === '[object Array]') {
-          totalValue = response.length
-        } else if (typeof response === 'object') {
-          if (totalField && totalField.indexOf('.') !== -1) {
-            totalField.split('.').forEach(i => {
-              totalValue = totalValue[i]
-            })
-          } else {
-            totalValue = response[totalField]
+          if (!result || !(result instanceof Array)) {
+            this.loading = false;
+            this.total = total;
+            this.tableData = [];
+            return;
           }
-        } else {
-          totalValue = 0
-        }
-        this.total = +totalValue
 
-        this.loading = false
-      }).catch(() => {
-        this.loading = false
-      })
+          if (this.dataHandler) {
+            this.tableData = result.map(this.dataHandler);
+          } else {
+            this.tableData = result;
+          }
+
+          if (this.getDataFinish) {
+            this.getDataFinish(this.tableData);
+          }
+
+          if (this.canEdit) {
+            this.formatEditableData();
+          }
+
+          let totalValue = response;
+          if (Object.prototype.toString.call(response) === '[object Array]') {
+            totalValue = response.length;
+          } else if (typeof response === 'object') {
+            if (totalField && totalField.indexOf('.') !== -1) {
+              totalField.split('.').forEach((i) => {
+                totalValue = totalValue[i];
+              });
+            } else {
+              totalValue = response[totalField];
+            }
+          } else {
+            totalValue = 0;
+          }
+          this.total = +totalValue;
+
+          this.loading = false;
+        })
+        .catch(() => {
+          this.loading = false;
+        });
     },
     // 触发自定义事件
     emitEventHandler(event) {
-      this.$emit(event, ...Array.from(arguments).slice(1))
+      this.$emit(event, ...Array.from(arguments).slice(1));
     },
     // 获取本地数据
     loadLocalData(data) {
-      const { autoLoad } = this
-      if (!data) {
-        console.error('')
-        return
-      }
-      const cacheData = JSON.parse(JSON.stringify(data))
-      this.cacheLocalData = cacheData
+      const { autoLoad } = this;
+      if (!data) return;
+      const cacheData = JSON.parse(JSON.stringify(data));
+      this.cacheLocalData = cacheData;
       if (autoLoad) {
-        this.tableData = this.dataFilter(cacheData)
-        this.total = cacheData.length
+        this.tableData = this.dataFilter(cacheData);
+        this.total = cacheData.length;
       }
-    }
-  }
-}
+      if (this.canEdit) {
+        this.formatEditableData();
+      }
+    },
+    resetTableData() {
+      this.tableData = [];
+    },
+    handleCellEdit(row, column) {
+      if (!this.canEdit || !row[column.property]) return;
+      row[column.property].edit = true;
+    },
+    clearTableSelection() {
+      this.$refs['table']?.clearSelection();
+    },
+    formatEditableData() {
+      this.tableData.forEach((item) => {
+        for (const key in item) {
+          item[key] = {
+            value: item[key],
+            edit: true,
+          };
+        }
+      });
+    },
+  },
+};
 </script>

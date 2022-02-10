@@ -1,64 +1,72 @@
 export const tableProps = {
+  canEdit: {
+    type: Boolean,
+    default: false,
+  },
   fetch: {
-    type: Function
+    type: Function,
   },
   listField: {
     type: String,
-    default: 'data.list'
+    default: 'data.list',
   },
   totalField: {
     type: String,
-    default: 'data.total'
+    default: 'data.total',
   },
   params: {
     type: Object,
     default: () => {
-      return {}
-    }
+      return {};
+    },
+  },
+  getDataFinish: {
+    type: Function,
+    default: () => {},
   },
   autoLoad: {
     type: Boolean,
-    default: true
+    default: true,
   },
   type: {
     type: String,
     default: 'remote',
     validator(value) {
-      const types = ['remote', 'local']
-      const validType = types.indexOf(value) !== -1
+      const types = ['remote', 'local'];
+      const validType = types.indexOf(value) !== -1;
       if (!validType) {
-        throw new Error(`prop属性：'${value}'请选择 'remote'或者'local'.`)
+        throw new Error(`prop属性：'${value}'请选择 'remote'或者'local'.`);
       }
-      return validType
-    }
+      return validType;
+    },
   },
   rowKey: {
     type: String,
-    default: 'id'
+    default: 'id',
   },
   treeTableLazy: {
     type: Boolean,
-    default: true
+    default: true,
   },
   loadChildData: {
-    type: Function
+    type: Function,
   },
   data: {
-    type: Array
+    type: Array,
   },
   dataHandler: {
-    type: Function
+    type: Function,
   },
   columns: {
     type: Array,
     required: true,
     label: {
       type: String,
-      required: true
+      required: true,
     },
     prop: {
       type: String,
-      required: true
+      required: true,
     },
     minWidth: Number,
     fixed: [Boolean, String],
@@ -66,33 +74,33 @@ export const tableProps = {
     formatter: Function,
     align: {
       type: String,
-      default: 'left'
+      default: 'left',
     },
     headerAlign: String,
     slotName: {
-      type: String
-    }
+      type: String,
+    },
   },
   showPagination: {
     type: Boolean,
-    default: true
+    default: true,
   },
   pageSizes: {
     type: Array,
     default: () => {
-      return [20, 50, 100]
-    }
+      return [20, 50, 100];
+    },
   },
   paginationLayout: {
     type: String,
-    default: 'total, prev, pager, next, jumper, sizes'
+    default: 'total, prev, pager, next, jumper, sizes',
   },
   pageIndexKey: {
     type: String,
-    default: 'currentPage'
+    default: 'pageNo',
   },
   pageSizeKey: {
     type: String,
-    default: 'pageSize'
-  }
-}
+    default: 'pageSize',
+  },
+};

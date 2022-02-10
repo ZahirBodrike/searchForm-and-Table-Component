@@ -1,46 +1,56 @@
 export const formProps = {
+  localData: Object,
   fetch: Function,
   fetchParams: Object,
+  formatter: Function,
+  getSelectDataFinish: {
+    type: Function,
+    default: () => {},
+  },
   autoFetch: {
     type: [Boolean, String, Number],
-    default: false
+    default: false,
   },
   size: {
     type: String,
     default: 'medium',
-    validator: sizeValidator
+    validator: sizeValidator,
   },
   fuzzy: {
     type: Boolean,
-    default: false
+    default: false,
+  },
+  showConfirmBtn: {
+    type: Boolean,
+    default: true,
   },
   showResetBtn: {
     type: Boolean,
-    default: false
+    default: false,
   },
   inline: {
     type: Boolean,
-    default: false
+    default: false,
   },
   labelWidth: Number,
   itemWidth: Number,
   submitHandler: Function,
   submitLoading: {
     type: Boolean,
-    default: false
+    default: false,
   },
   submitBtnText: {
     type: String,
-    default: '查询'
+    default: '查询',
   },
   resetBtnText: {
     type: String,
-    default: '重置'
+    default: '重置',
   },
   resetBtnCallback: Function,
   submitBtnPosition: {
     type: String,
-    default: 'right'
+    default: 'left',
   },
   formItemList: {
     type: Array,
@@ -48,42 +58,42 @@ export const formProps = {
     label: String,
     prop: {
       type: [String, Array],
-      required: true
+      required: true,
     },
     itemType: {
       type: String,
       default: 'input',
-      validator: itemTypeValidator
+      validator: itemTypeValidator,
     },
     size: {
       type: String,
       default: '',
-      validator: sizeValidator
+      validator: sizeValidator,
     },
     placeholder: {
       type: String,
-      default: '请输入'
+      default: '请输入',
     },
     editable: {
       type: Boolean,
-      default: true
+      default: true,
     },
     disabled: {
       type: Boolean,
-      default: false
+      default: false,
     },
     readonly: {
       type: Boolean,
-      default: false
+      default: false,
     },
     fuzzy: {
       type: Boolean,
-      default: false
+      default: false,
     },
     valueKey: String,
     labelKey: String,
     format: Function,
-    rules: Array,
+    rules: Object,
     pickerOptions: Object,
 
     // switch
@@ -100,28 +110,25 @@ export const formProps = {
     selectResultHandler: Function,
 
     // date
-    valueFormat: {
-      type: String,
-      default: 'yyyy-MM-dd HH:mm:ss'
-    }
-  }
-}
+    valueFormat: String,
+  },
+};
 
 function sizeValidator(value) {
-  const methodTypes = ['large', 'medium', 'small', 'mini']
-  const valid = methodTypes.indexOf(value.toLowerCase()) !== -1 || value === ''
+  const methodTypes = ['large', 'medium', 'small', 'mini'];
+  const valid = methodTypes.indexOf(value.toLowerCase()) !== -1 || value === '';
   if (!valid) {
-    throw new Error(`size 需要选择对值在其中之一：['large', 'medium', 'small', 'mini']`)
+    throw new Error(`size 需要选择对值在其中之一：['large', 'medium', 'small', 'mini']`);
   }
-  return valid
+  return valid;
 }
 
 function itemTypeValidator(value) {
-  const methodTypes = ['input', 'select', 'date', 'daterange']
-  const valid = methodTypes.indexOf(value.toLowerCase()) !== -1
+  const methodTypes = ['input', 'select', 'date', 'daterange'];
+  const valid = methodTypes.indexOf(value.toLowerCase()) !== -1;
   if (!valid) {
-    throw new Error(`ItemType must be one of ['input', 'select', 'date', 'daterange']`)
+    throw new Error(`ItemType must be one of ['input', 'select', 'date', 'daterange']`);
   }
-  return valid
+  return valid;
 }
 
